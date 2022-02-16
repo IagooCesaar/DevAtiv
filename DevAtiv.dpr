@@ -5,13 +5,24 @@ program DevAtiv;
 {$R *.res}
 
 uses
-  System.SysUtils;
+  System.SysUtils,
+  Horse,
+  Horse.Jhonson;
+
+var App: THorse;
 
 begin
-  try
-    { TODO -oUser -cConsole Main : Insert code here }
-  except
-    on E: Exception do
-      Writeln(E.ClassName, ': ', E.Message);
-  end;
+  App := THorse.Create;
+  App.Port  := 8486;
+  App.Use(Jhonson);
+
+  App.Get('/ping',
+    procedure (req: THorseRequest; res: THorseResponse)
+    begin
+      Res.Send('{ "message": "pong" }');
+    end
+  );
+
+  App.Listen;
+
 end.
