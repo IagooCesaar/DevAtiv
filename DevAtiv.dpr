@@ -6,23 +6,14 @@ program DevAtiv;
 
 uses
   System.SysUtils,
-  Horse,
-  Horse.Jhonson;
+  uHorseApp in 'src\shared\http\uHorseApp.pas';
 
-var App: THorse;
-
+var App: THorseApp;
 begin
-  App := THorse.Create;
-  App.Port  := 8486;
-  App.Use(Jhonson);
-
-  App.Get('/ping',
-    procedure (req: THorseRequest; res: THorseResponse)
-    begin
-      Res.Send('{ "message": "pong" }');
-    end
-  );
-
-  App.Listen;
-
+  try
+    App := THorseApp.CreateNew(8486);
+    App.Listen;
+  finally
+    FreeAndNil(App);
+  end;
 end.
