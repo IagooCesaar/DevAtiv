@@ -339,7 +339,7 @@ begin
         end;
       end;
       //Se não encontrados parâmetros válidos, erro na requisição
-      if Pos('/:', RotaExecutada) <= 0 then begin
+      if Pos('/:', Partes.DelimitedText) <= 0 then begin
         Result := '';
         Exit;
       end;
