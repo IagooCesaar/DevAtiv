@@ -50,6 +50,14 @@
 			"failed": false,
 			"changed": false
 		},
+		"github.com/marcelojaloto/swagdoc": {
+			"name": "swagdoc",
+			"version": "master",
+			"hash": "7b8bd3e7618fc803235e5a2f7d2906c9",
+			"artifacts": {},
+			"failed": false,
+			"changed": false
+		},
 		"github.com/paolo-rossi/delphi-jose-jwt": {
 			"name": "delphi-jose-jwt",
 			"version": "v3.0.3",
