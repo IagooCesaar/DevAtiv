@@ -6,7 +6,8 @@ program DevAtiv;
 
 uses
   System.SysUtils,
-  uHorseApp in 'src\shared\http\uHorseApp.pas';
+  uHorseApp in 'src\shared\http\uHorseApp.pas',
+  uAppController in 'src\shared\http\uAppController.pas';
 
 var App: THorseApp;
 begin
