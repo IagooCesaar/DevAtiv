@@ -9,6 +9,7 @@ type
   TVerbosHttp = (vGet, vPost, vPut, vPatch, vDelete);
   TLocaisParametrosRequisicao = (pNotDefined, pRoute, pQuery, pHeader, pBody);
   TTiposParametro = (tpNotDefined, tpString, tpNumber, tpInteger, tpBoolean, tpArray, tpFile, tpObject);
+  TTipoSubModelo = (tsmList, tsmDictionary, tsmInterface);
 
   RotaRaiz = class(TCustomAttribute)
     private
@@ -65,6 +66,37 @@ type
       constructor Create(Nome, Descricao: string; Tipo: TTiposParametro;
         Local: TLocaisParametrosRequisicao; Obrigatorio: Boolean; Formato: string); overload;
 
+  end;
+
+  TClassInterfacedObject = class of TInterfacedObject;
+
+  Modelo = class(TCustomAttribute)
+    private
+      FDescricao: string;
+      FClasse: TClassInterfacedObject;
+      FNome: string;
+    public
+      property Nome: string                   read FNome      write FNome;
+      property Descricao: string              read FDescricao write FDescricao;
+      property Classe: TClassInterfacedObject read FClasse    write FClasse;
+
+      constructor Create(Nome, Descricao : string; Classe: TClassInterfacedObject); overload;
+  end;
+
+  SubModelo = class (TCustomAttribute)
+    private
+      FDescricao: string;
+      FClasse: TClassInterfacedObject;
+      FNome: string;
+      FTipo: TTipoSubModelo;
+    public
+      property Nome: string                   read FNome      write FNome;
+      property Descricao: string              read FDescricao write FDescricao;
+      property Classe: TClassInterfacedObject read FClasse    write FClasse;
+      property Tipo: TTipoSubModelo           read FTipo      write FTipo;
+
+      constructor Create(Nome, Descricao : string); overload;
+      constructor Create(Nome, Descricao : string; TipoLista: Boolean; Classe: TClassInterfacedObject); overload;
   end;
 
 
@@ -132,6 +164,38 @@ begin
   Self.FLocal       := Local;
   Self.FObrigatorio := Obrigatorio;
   Self.FFormato     := Formato;
+end;
+
+{ Modelo }
+
+constructor Modelo.Create(Nome, Descricao: string;
+  Classe: TClassInterfacedObject);
+begin
+  Self.FNome      := Nome;
+  Self.FDescricao := Descricao;
+  Self.FClasse    := Classe;
+end;
+
+{ SubModelo }
+
+constructor SubModelo.Create(Nome, Descricao: string; TipoLista: Boolean;
+  Classe: TClassInterfacedObject);
+begin
+  Self.FNome      := Nome;
+  Self.FDescricao := Descricao;
+  if TipoLista then
+    Self.Tipo     := tsmList
+  else
+    Self.Tipo     := tsmInterface;
+  Self.Classe     := Classe;
+end;
+
+constructor SubModelo.Create(Nome, Descricao: string);
+begin
+  Self.FNome      := Nome;
+  Self.FDescricao := Descricao;
+  Self.Tipo       := tsmDictionary;
+  Self.Classe     := nil;
 end;
 
 end.
