@@ -3,7 +3,8 @@ unit uHorseApp;
 interface
 
 uses
-  System.SysUtils, Horse, Horse.Jhonson;
+  System.SysUtils,
+  Horse, Horse.Jhonson, Horse.HandleException;
 
 type
   THorseApp = class(THorse)
@@ -25,6 +26,7 @@ begin
 
   FPorta := Porta;
   Self.Use(Jhonson);
+  Self.Use(HandleException);
 
   Self.Get('/ping',
     procedure (req: THorseRequest; res: THorseResponse)
