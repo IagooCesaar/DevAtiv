@@ -3,7 +3,9 @@ unit uAppController;
 interface
 
 uses
-  System.SysUtils, Horse;
+  System.SysUtils, System.Classes, System.Generics.Collections, System.Rtti,
+  Web.HTTPApp,
+  Horse, Horse.Core;
 
 type
   TVerbosHttp = (vGet, vPost, vPut, vPatch, vDelete);
@@ -104,10 +106,35 @@ type
   TCLassAppController = class of TAppController;
 
   TAppController = class(TInterfacedObject)
+    private
+      class var FPermissoes: TDictionary<string, string>;
+      class var FRotas: TDictionary<string, string>;
+      class var FMetodos: TDictionary<string, string>;
 
+      function FormatarRota(RotaExecutada: string; Metodo: TMethodType): string;
+      function ChaveRota(RotaExecutada: string; Metodo: TMethodType): string;
+
+    protected
+      FRequest: THorseRequest;
+      FResponse: THorseResponse;
+
+      constructor CreateNew; virtual;
+      procedure Execute; virtual;
+      function RotaExecutada: string;
+
+    public
+      class property Permissoes: TDictionary<string, string> read FPermissoes write FPermissoes;
+      class property Metodos: TDictionary<string, string> read FMetodos write FMetodos;
+      class property Rotas: TDictionary<string, string> read FRotas write FRotas;
+
+      class procedure Handle(Req: THorseRequest; Res: THorseResponse; Next: TProc); virtual; {final;}
   end;
 
 implementation
+
+uses
+  System.TypInfo;
+
 
 { RotaRaiz }
 
@@ -196,6 +223,142 @@ begin
   Self.FDescricao := Descricao;
   Self.Tipo       := tsmDictionary;
   Self.Classe     := nil;
+end;
+
+{ TAppController }
+
+function TAppController.ChaveRota(RotaExecutada: string;
+  Metodo: TMethodType): string;
+begin
+  Result := RotaExecutada+'['+GetEnumName(TypeInfo(TMethodType), Integer(Metodo))+']';
+end;
+
+constructor TAppController.CreateNew;
+begin
+  inherited Create;
+end;
+
+procedure TAppController.Execute;
+var
+  Ctx         : TRttiContext;
+  Tp          : TRttiType;
+  sRota       : string;
+  sMetodo     : string;
+  sPermissoes : string;
+  TipoMetodo  : TMethodType;
+begin
+  TipoMetodo  := THorseRequest(Self.FRequest).RawWebRequest.MethodType;
+  sRota       := Self.RotaExecutada;
+  try
+    sMetodo     := Self.Metodos.Items[sRota];
+    sPermissoes := Self.Permissoes.Items[sMetodo];
+    //Dados perfil usuário do token
+  except
+    sMetodo     := Self.Metodos.Items[Self.FormatarRota(sRota, TipoMetodo)];
+    sPermissoes := Self.Permissoes.Items[sMetodo];
+  end;
+
+  if (sPermissoes.Trim = '') or (true {ver se usuário tem permissão}) then begin
+    Ctx := TRttiContext.Create;
+    Tp  := Ctx.GetType(Self.ClassInfo);
+    try
+      Tp.GetMethod(sMetodo).Invoke(Self, []);
+    finally
+      Ctx.Free;
+    end;
+  end else begin
+    //Self.Send('Você não tem autorização para executar este serviço.', 403);
+  end;
+end;
+
+function TAppController.FormatarRota(RotaExecutada: string;
+  Metodo: TMethodType): string;
+var
+  I: Integer;
+  Partes: TStringList;
+  Param: TPair<string, string>;
+  Key: String;
+begin
+  Result := '';
+  if RotaExecutada.Trim = '' then Exit;
+
+  Key := Self.ChaveRota(RotaExecutada, Metodo);
+
+  //Se não encontrar a rota na lista provavelmente foi registrada com parâmetros
+  if not Self.Metodos.ContainsKey(Key) then begin
+    //Se a rota executada continver '/:' e não foi encontrada, é por que há um erro na requisição e a rota não existe
+    if Pos('/:', RotaExecutada) > 0 then begin
+      Result := '';
+      Exit;
+    end;
+
+    Partes := TStringList.Create;
+    try
+      //Realiza substituições
+      Partes.Clear;
+      Partes.Delimiter  := '/';
+      Partes.DelimitedText  := RotaExecutada;
+      for Param in Self.FRequest.Params.ToArray do begin
+        for I := Partes.Count-1 downto 0 do begin
+          if Param.Value = Partes.Strings[i] then begin
+            Partes.Strings[i] := ':'+Param.Key;
+            Break;
+          end;
+        end;
+      end;
+      //Se não encontrados parâmetros válidos, erro na requisição
+      if Pos('/:', RotaExecutada) <= 0 then begin
+        Result := '';
+        Exit;
+      end;
+      Result := Self.FormatarRota(Partes.DelimitedText, Metodo);
+    finally
+      Partes.Free;
+    end;
+  end else
+    Result := RotaExecutada;
+end;
+
+class procedure TAppController.Handle(Req: THorseRequest; Res: THorseResponse;
+  Next: TProc);
+var Controller: TAppController;
+begin
+  Controller  := CreateNew;
+  try
+    try
+      //Controller.BeforeExecute;
+      Controller.Execute;
+      //Controller.AfeterExecute;
+    except
+      {on E: EHorseException do
+        raise EHorseException.Create(E.Status, getMSGErro(E.Error));
+
+      on e: exception do
+        raise Exception.Create(getMSGErro(E.Message));
+      }
+    end;
+  finally
+    Controller.DisposeOf;
+  end;
+end;
+
+function TAppController.RotaExecutada: string;
+var
+  RotaExecutada: string;
+  PathInfo: string;
+  MethodType : TMethodType;
+begin
+  Result        := '';
+  PathInfo      := THorseRequest(Self.FRequest).RawWebRequest.PathInfo;
+  MethodType    := THorseRequest(Self.FRequest).RawWebRequest.MethodType;
+  RotaExecutada := FormatarRota(PathInfo, MethodType);
+
+  if RotaExecutada = '' then begin
+    //Retorno Self.Send('Rota [' + PathInfo + '] não encontrada para este serviço.', 404);
+    Exit;
+  end;
+
+  Result := Self.ChaveRota(RotaExecutada, MethodType);
 end;
 
 end.
