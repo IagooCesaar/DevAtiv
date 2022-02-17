@@ -25,7 +25,9 @@ begin
   route := Self.FRequest.Params.Field('route').AsInteger;
   query := Self.FRequest.Query.Field('query').Asstring;
 
-  Self.FResponse.Send('{ "message": "ping-pong", "route": '+route.ToString+', "query": "'+query+'" }').Status(ThttpStatus.Ok)
+  Self.FResponse.Send(
+    '{ "message": "ping-pong", "route": '+route.ToString+', "query": "'+query+'" }'
+  ).Status(ThttpStatus.Ok);
 end;
 
 end.
