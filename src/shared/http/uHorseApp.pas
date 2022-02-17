@@ -83,7 +83,7 @@ begin
           _ModeloResposta     := (atr as Rota).ModeloResposta;
 
           _Rota       := _RotaHorse;
-          iPosParam   := Pos(':', _Rota);
+          (*iPosParam   := Pos(':', _Rota);
           iQtdParams  := 0;
           while iPosParam > 0 do begin
             Inc(iQtdParams);
@@ -99,7 +99,7 @@ begin
             _Rota := _Rota+ '{param'+iQtdParams.ToString+'}'+sTrechoRotaFim;
 
             iPosParam   := Pos(':', _Rota);
-          end;
+          end;*)
 
           sKey := uAppController.GeraChaveRota(_RotaHorse, _TipoMetodo);
 
