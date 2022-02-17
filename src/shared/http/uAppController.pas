@@ -5,7 +5,7 @@ interface
 uses
   System.SysUtils, System.Classes, System.Generics.Collections, System.Rtti,
   Web.HTTPApp,
-  Horse, Horse.Core;
+  Horse, Horse.Core, Horse.Exception;
 
 type
   TVerbosHttp = (vGet, vPost, vPut, vPatch, vDelete);
@@ -17,10 +17,13 @@ type
     private
       FRotaRaiz: string;
       FNome: string;
+      FSwagger: boolean;
     public
       property RotaRaiz: string read FRotaRaiz write FRotaRaiz;
       property Nome: string read FNome write FNome;
-      constructor Create(RotaRaiz, Nome: string);
+      property Swagger: boolean read FSwagger write FSwagger;
+      constructor Create(RotaRaiz, Nome: string); overload;
+      constructor Create(RotaRaiz, Nome: string; Swagger: boolean); overload;
   end;
 
   Rota = class(TCustomAttribute)
@@ -110,25 +113,30 @@ type
       class var FPermissoes: TDictionary<string, string>;
       class var FRotas: TDictionary<string, string>;
       class var FMetodos: TDictionary<string, string>;
-
+      class var FConfigRota: TDictionary<string, string>;
       function FormatarRota(RotaExecutada: string; Metodo: TMethodType): string;
-      function ChaveRota(RotaExecutada: string; Metodo: TMethodType): string;
 
+      procedure BeforeExecute(Req: THorseRequest; Res: THorseResponse);
+      procedure AfterExecute(Req: THorseRequest; Res: THorseResponse);
     protected
       FRequest: THorseRequest;
       FResponse: THorseResponse;
-
       constructor CreateNew; virtual;
       procedure Execute; virtual;
       function RotaExecutada: string;
-
     public
+
       class property Permissoes: TDictionary<string, string> read FPermissoes write FPermissoes;
       class property Metodos: TDictionary<string, string> read FMetodos write FMetodos;
       class property Rotas: TDictionary<string, string> read FRotas write FRotas;
+      class property ConfigRota: TDictionary<string, string> read FConfigRota write FConfigRota;
+
+
 
       class procedure Handle(Req: THorseRequest; Res: THorseResponse; Next: TProc); virtual; {final;}
   end;
+
+  function GeraChaveRota(RotaExecutada: string; Metodo: TMethodType): string;
 
 implementation
 
@@ -136,12 +144,24 @@ uses
   System.TypInfo;
 
 
+function GeraChaveRota(RotaExecutada: string;
+Metodo: TMethodType): string;
+begin
+  Result := RotaExecutada+'['+GetEnumName(TypeInfo(TMethodType), Integer(Metodo))+']';
+end;
+
 { RotaRaiz }
 
 constructor RotaRaiz.Create(RotaRaiz, Nome: string);
 begin
+  Create(RotaRaiz, Nome, True);
+end;
+
+constructor RotaRaiz.Create(RotaRaiz, Nome: string; Swagger: boolean);
+begin
   FRotaRaiz := RotaRaiz;
   FNome     := Nome;
+  FSwagger  := Swagger;
 end;
 
 { Rota }
@@ -227,10 +247,15 @@ end;
 
 { TAppController }
 
-function TAppController.ChaveRota(RotaExecutada: string;
-  Metodo: TMethodType): string;
+procedure TAppController.AfterExecute(Req: THorseRequest; Res: THorseResponse);
 begin
-  Result := RotaExecutada+'['+GetEnumName(TypeInfo(TMethodType), Integer(Metodo))+']';
+  //
+end;
+
+procedure TAppController.BeforeExecute(Req: THorseRequest; Res: THorseResponse);
+begin
+  Self.FRequest   := Req;
+  Self.FResponse  := Res;
 end;
 
 constructor TAppController.CreateNew;
@@ -267,6 +292,13 @@ begin
       Ctx.Free;
     end;
   end else begin
+    raise EHorseException.New
+      .Status(THTTPStatus.Forbidden)
+      .Error('Você não tem permissão para executar este recurso')
+      .Title('Permissão de acesso')
+      .&Type(TMessageType.Information)
+      .&Unit('uAppController')
+    ;
     //Self.Send('Você não tem autorização para executar este serviço.', 403);
   end;
 end;
@@ -282,7 +314,7 @@ begin
   Result := '';
   if RotaExecutada.Trim = '' then Exit;
 
-  Key := Self.ChaveRota(RotaExecutada, Metodo);
+  Key := GeraChaveRota(RotaExecutada, Metodo);
 
   //Se não encontrar a rota na lista provavelmente foi registrada com parâmetros
   if not Self.Metodos.ContainsKey(Key) then begin
@@ -325,18 +357,9 @@ var Controller: TAppController;
 begin
   Controller  := CreateNew;
   try
-    try
-      //Controller.BeforeExecute;
-      Controller.Execute;
-      //Controller.AfeterExecute;
-    except
-      {on E: EHorseException do
-        raise EHorseException.Create(E.Status, getMSGErro(E.Error));
-
-      on e: exception do
-        raise Exception.Create(getMSGErro(E.Message));
-      }
-    end;
+    Controller.BeforeExecute(Req, Res);
+    Controller.Execute;
+    //Controller.AfeterExecute(Req, Resp);
   finally
     Controller.DisposeOf;
   end;
@@ -354,11 +377,17 @@ begin
   RotaExecutada := FormatarRota(PathInfo, MethodType);
 
   if RotaExecutada = '' then begin
+    raise EHorseException.New
+      .Status(THTTPStatus.NotFound)
+      .Error('Rota [' + PathInfo + '] não encontrada para este serviço.')
+      .&Type(TMessageType.Information)
+      .&Unit('uAppController')
+    ;
     //Retorno Self.Send('Rota [' + PathInfo + '] não encontrada para este serviço.', 404);
     Exit;
   end;
 
-  Result := Self.ChaveRota(RotaExecutada, MethodType);
+  Result := GeraChaveRota(RotaExecutada, MethodType);
 end;
 
 end.
