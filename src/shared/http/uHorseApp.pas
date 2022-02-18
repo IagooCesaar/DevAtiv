@@ -14,7 +14,9 @@ type
   public
     function RotaToMethodType(Verbo: TVerbosHttp): TMethodType;
     procedure AddController(Classe: TClassAppController); overload;
+    procedure Start;
     constructor CreateNew(Porta: Integer);
+    destructor Destroy; override;
   end;
 
 implementation
@@ -156,6 +158,12 @@ begin
   );
 end;
 
+destructor THorseApp.Destroy;
+begin
+  TSingletonDictionary.GetInstance.DisposeOf;
+  inherited;
+end;
+
 function THorseApp.RotaToMethodType(Verbo: TVerbosHttp): TMethodType;
 begin
   case Verbo of
@@ -165,6 +173,28 @@ begin
     vPatch  : Result := mtPatch;
     vDelete : Result := mtDelete;
   end;
+end;
+
+procedure THorseApp.Start;
+begin
+  Self.Listen(FPorta,
+    procedure (Horse: THorse)
+    begin
+      Writeln(Format('Server is runing on %s:%d', [Horse.Host, Horse.Port]));
+      {$IFDEF DEBUG}
+      {$IFDEF MSWINDOWS}
+      //ReportMemoryLeaksOnShutdown := True;
+      //IsConsole := false;
+
+      while THorse.IsRunning do begin
+        Writeln('Press enter to terminate the server');
+        Readln;
+        THorse.StopListen;
+      end;
+      {$ENDIF}
+      {$ENDIF}
+    end
+  );
 end;
 
 end.

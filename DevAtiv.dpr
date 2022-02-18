@@ -16,7 +16,7 @@ var App: THorseApp;
 begin
   try
     App := THorseApp.CreateNew(8486);
-    App.Listen;
+    App.Start;
   finally
     FreeAndNil(App);
   end;
